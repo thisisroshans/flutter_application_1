@@ -3,6 +3,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 
 import 'core/api/api_client.dart';
 import 'core/local_storage/local_cache_service.dart';
+import 'core/local_storage/local_storage_service.dart';
 import 'core/network/network_info.dart';
 
 import 'features/auth/bloc/auth_bloc.dart';
@@ -21,9 +22,10 @@ Future<void> setupServiceLocator() async {
 
   sl.registerLazySingleton(() => ApiClient());
   sl.registerLazySingleton(() => LocalCacheService());
+  sl.registerLazySingleton(() => LocalStorageService());
 
   sl.registerLazySingleton<AuthRepository>(
-    () => AuthRepository(),
+    () => AuthRepository(storageService: sl()),
   );
 
   sl.registerLazySingleton<TodoRepository>(

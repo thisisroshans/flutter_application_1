@@ -14,6 +14,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         super(AuthInitial()) {
     on<LoginRequested>(_onLoginRequested);
     on<LogoutRequested>(_onLogoutRequested);
+    on<CheckAuthStatus>(_onCheckAuthStatus);
+  }
+
+  Future<void> _onCheckAuthStatus(
+    CheckAuthStatus event,
+    Emitter<AuthState> emit,
+  ) async {
+    final isLoggedIn = await _authRepository.isLoggedIn();
+
+    if (isLoggedIn) {
+      emit(AuthAuthenticated());
+    } else {
+      emit(AuthUnauthenticated());
+    }
   }
 
   Future<void> _onLoginRequested(
@@ -35,10 +49,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  void _onLogoutRequested(
+  Future<void> _onLogoutRequested(
     LogoutRequested event,
     Emitter<AuthState> emit,
-  ) {
+  ) async {
+    await _authRepository.logout();
     emit(AuthUnauthenticated());
   }
 }
