@@ -34,44 +34,50 @@ class _TodosScreenState extends State<TodosScreen> {
     });
   }
 
-  void _showAddTaskDialog() {
+  void _showAddTaskBottomSheet() {
     final titleController = TextEditingController();
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Add Task'),
-        content: TextField(
-          controller: titleController,
-          decoration: const InputDecoration(hintText: 'Task title'),
-          autofocus: true,
+      isScrollControlled: true,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          top: 20,
+          left: 20,
+          right: 20,
         ),
-        actions: [
-          TextButton(
-            onPressed: Navigator.of(context).pop,
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final text = titleController.text.trim();
-              if (text.isEmpty) return;
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              decoration: const InputDecoration(hintText: 'Task title'),
+              autofocus: true,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                final text = titleController.text.trim();
+                if (text.isEmpty) return;
 
-              _taskBloc.add(
-                AddTask(
-                  Todo(
-                    id: DateTime.now().millisecondsSinceEpoch,
-                    userId: 1,
-                    title: text,
-                    completed: false,
+                _taskBloc.add(
+                  AddTask(
+                    Todo(
+                      id: DateTime.now().millisecondsSinceEpoch,
+                      userId: 1,
+                      title: text,
+                      completed: false,
+                    ),
                   ),
-                ),
-              );
+                );
 
-              Navigator.of(context).pop();
-            },
-            child: const Text('Add'),
-          ),
-        ],
+                Navigator.of(context).pop();
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -117,9 +123,8 @@ class _TodosScreenState extends State<TodosScreen> {
           },
         ),
       ),
-
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddTaskDialog,
+        onPressed: _showAddTaskBottomSheet,
         child: const Icon(Icons.add),
       ),
     );
