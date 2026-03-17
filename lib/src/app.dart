@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'features/auth/view/login_screen.dart';
-import 'features/todos/bloc/task_bloc.dart';
+import 'features/todos/bloc/todos_bloc.dart';
 import 'service_locator.dart';
 
 class App extends StatelessWidget {
@@ -12,7 +12,7 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider(create: (context) => sl<TaskBloc>()..add(LoadTasks())),
+        BlocProvider(create: (context) => sl<TodoBloc>()..add(LoadTodos())),
       ],
       child: MaterialApp(
         title: 'Todo App',

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../bloc/task_bloc.dart';
+import '../bloc/todos_bloc.dart';
 import '../data/models/todo.dart';
 
 class TodosScreen extends StatefulWidget {
@@ -16,12 +16,12 @@ class _TodosScreenState extends State<TodosScreen> {
   final _searchController = TextEditingController();
   Timer? _debounce;
 
-  late final TaskBloc _taskBloc;
+  late final TodoBloc _TodoBloc;
 
   @override
   void initState() {
     super.initState();
-    _taskBloc = context.read<TaskBloc>();
+    _TodoBloc = context.read<TodoBloc>();
 
     _searchController.addListener(_onSearchChanged);
   }
@@ -30,11 +30,11 @@ class _TodosScreenState extends State<TodosScreen> {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
 
     _debounce = Timer(const Duration(milliseconds: 400), () {
-      _taskBloc.add(SearchTasks(_searchController.text));
+      _TodoBloc.add(SearchTodos(_searchController.text));
     });
   }
 
-  void _showAddTaskBottomSheet() {
+  void _showAddTodoBottomSheet() {
     final titleController = TextEditingController();
 
     showModalBottomSheet(
@@ -52,7 +52,7 @@ class _TodosScreenState extends State<TodosScreen> {
           children: [
             TextField(
               controller: titleController,
-              decoration: const InputDecoration(hintText: 'Task title'),
+              decoration: const InputDecoration(hintText: 'Todo title'),
               autofocus: true,
             ),
             const SizedBox(height: 20),
@@ -61,8 +61,8 @@ class _TodosScreenState extends State<TodosScreen> {
                 final text = titleController.text.trim();
                 if (text.isEmpty) return;
 
-                _taskBloc.add(
-                  AddTask(
+                _TodoBloc.add(
+                  AddTodo(
                     Todo(
                       id: DateTime.now().millisecondsSinceEpoch,
                       userId: 1,
@@ -83,7 +83,7 @@ class _TodosScreenState extends State<TodosScreen> {
   }
 
   Future<void> _onRefresh() async {
-    _taskBloc.add(LoadTasks());
+    _TodoBloc.add(LoadTodos());
   }
 
   @override
@@ -96,17 +96,17 @@ class _TodosScreenState extends State<TodosScreen> {
           child: _SearchBar(controller: _searchController),
         ),
       ),
-      body: BlocListener<TaskBloc, TaskState>(
+      body: BlocListener<TodoBloc, TodoState>(
         listener: (context, state) {
-          if (state is TaskError) {
+          if (state is TodoError) {
             ScaffoldMessenger.of(context)
               ..hideCurrentSnackBar()
               ..showSnackBar(SnackBar(content: Text(state.message)));
           }
         },
-        child: BlocBuilder<TaskBloc, TaskState>(
+        child: BlocBuilder<TodoBloc, TodoState>(
           builder: (context, state) {
-            if (state is TaskLoaded) {
+            if (state is TodoLoaded) {
               return RefreshIndicator(
                 onRefresh: _onRefresh,
                 child: ListView.builder(
@@ -124,7 +124,7 @@ class _TodosScreenState extends State<TodosScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddTaskBottomSheet,
+        onPressed: _showAddTodoBottomSheet,
         child: const Icon(Icons.add),
       ),
     );
@@ -150,7 +150,7 @@ class _SearchBar extends StatelessWidget {
       child: TextField(
         controller: controller,
         decoration: InputDecoration(
-          hintText: 'Search tasks...',
+          hintText: 'Search Todos...',
           prefixIcon: const Icon(Icons.search),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         ),
@@ -166,21 +166,21 @@ class _TodoItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bloc = context.read<TaskBloc>();
+    final bloc = context.read<TodoBloc>();
 
     return ListTile(
       leading: Checkbox(
         value: todo.completed,
         onChanged: (value) {
           if (value != null) {
-            bloc.add(ToggleTaskCompletion(todo.id, value));
+            bloc.add(ToggleTodoCompletion(todo.id, value));
           }
         },
       ),
       title: Text(todo.title),
       trailing: IconButton(
         icon: const Icon(Icons.delete, color: Colors.red),
-        onPressed: () => bloc.add(DeleteTask(todo.id)),
+        onPressed: () => bloc.add(DeleteTodo(todo.id)),
       ),
     );
   }
