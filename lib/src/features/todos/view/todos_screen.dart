@@ -16,12 +16,12 @@ class _TodosScreenState extends State<TodosScreen> {
   final _searchController = TextEditingController();
   Timer? _debounce;
 
-  late final TodoBloc _TodoBloc;
+  late final TodoBloc _todoBloc;
 
   @override
   void initState() {
     super.initState();
-    _TodoBloc = context.read<TodoBloc>();
+    _todoBloc = context.read<TodoBloc>();
 
     _searchController.addListener(_onSearchChanged);
   }
@@ -30,7 +30,7 @@ class _TodosScreenState extends State<TodosScreen> {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
 
     _debounce = Timer(const Duration(milliseconds: 400), () {
-      _TodoBloc.add(SearchTodos(_searchController.text));
+      _todoBloc.add(SearchTodos(_searchController.text));
     });
   }
 
@@ -61,7 +61,7 @@ class _TodosScreenState extends State<TodosScreen> {
                 final text = titleController.text.trim();
                 if (text.isEmpty) return;
 
-                _TodoBloc.add(
+                _todoBloc.add(
                   AddTodo(
                     Todo(
                       id: DateTime.now().millisecondsSinceEpoch,
@@ -83,7 +83,7 @@ class _TodosScreenState extends State<TodosScreen> {
   }
 
   Future<void> _onRefresh() async {
-    _TodoBloc.add(LoadTodos());
+    _todoBloc.add(LoadTodos());
   }
 
   @override

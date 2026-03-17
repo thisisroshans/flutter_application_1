@@ -16,11 +16,11 @@ class FetchDataException extends ApiException {
 }
 
 class BadRequestException extends ApiException {
-  BadRequestException([message]) : super(message, "Invalid Request: ");
+  BadRequestException([String? message]) : super(message, "Invalid Request: ");
 }
 
 class UnauthorisedException extends ApiException {
-  UnauthorisedException([message]) : super(message, "Unauthorised: ");
+  UnauthorisedException([String? message]) : super(message, "Unauthorised: ");
 }
 
 class InvalidInputException extends ApiException {
