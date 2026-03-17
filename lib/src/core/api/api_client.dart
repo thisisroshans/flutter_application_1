@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'api_exceptions.dart';
 import '../../features/todos/data/models/todo.dart';
@@ -60,7 +59,8 @@ class ApiClient {
       case 500:
       default:
         throw FetchDataException(
-            'Error occurred while communicating with server with StatusCode : ${response.statusCode}');
+          'Error occurred while communicating with server with StatusCode : ${response.statusCode}',
+        );
     }
   }
 }
