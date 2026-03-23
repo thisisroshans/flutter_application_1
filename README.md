@@ -18,8 +18,8 @@ This is a robust, production-ready Todo application built with Flutter. It demon
 
 1.  **Clone the repository:**
     ```bash
-    git clone <repository-url>
-    cd flutter_todo_app
+    git clone https://github.com/thisisroshans/flutter_application_1.git
+    cd flutter_application_1
     ```
 
 2.  **Install dependencies:**
