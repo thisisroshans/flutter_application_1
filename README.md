@@ -1,119 +1,129 @@
+# Flutter TaskManager (BLoC & Offline-First)
 
-# Flutter Todo Application
+This is a robust, production-ready Todo application built with Flutter. It demonstrates a feature-first architecture, strict adherence to the BLoC pattern for state management, optimistic UI updates, and a comprehensive offline-first caching strategy.
 
-This is a robust Todo application built with Flutter, demonstrating a feature-first architecture, BLoC for state management, optimistic UI updates, and offline support.
+## Video Demonstration
+// TODO
 
 ## Features
 
-- View, add, update, and delete todos.
-- Optimistic UI updates for a smooth user experience.
-- Offline support with local caching and background synchronization.
-- Mock user authentication.
-- Search functionality to filter todos.
-- Pull-to-refresh to sync with the remote server.
-
-## Project Structure
-
-The project follows a feature-first architecture, where code is organized by feature (e.g., `auth`, `todos`) rather than by layer (e.g., `bloc`, `ui`). This approach improves scalability and modularity.
-
-```
-lib
-├── src
-│   ├── app.dart              # Root widget, handles auth routing
-│   ├── main.dart             # App entry point
-│   ├── service_locator.dart  # Service locator setup (if used)
-│   │
-│   ├── core
-│   │   ├── api/              # API client and exceptions
-│   │   ├── local_storage/    # Local caching service
-│   │   └── network/          # Network connectivity checker
-│   │
-│   └── features
-│       ├── auth/             # Authentication feature
-│       │   ├── bloc/
-│       │   └── view/
-│       │
-│       └── todos/            # Todos feature
-│           ├── bloc/
-│           ├── data/
-│           │   ├── models/
-│           │   └── todos_repository.dart
-│           ├── view/
-│           └── widgets/
-│
-└── ...
-```
+- Full CRUD: View, add, update (mark complete), and delete tasks.
+- Optimistic UI: Instantaneous state updates without waiting for network responses.
+- Offline-First: Read and write tasks even without an internet connection.
+- Background Sync: Automatically queues offline actions and syncs them when the connection is restored.
+- Mock Authentication: Protected routes requiring user login.
+- Search & Filter: Real-time task filtering via search.
+- Pull-to-Refresh: Manually trigger a synchronization with the remote server.
 
 ## Setup and Installation
 
 1.  **Clone the repository:**
-    ```sh
+    ```bash
     git clone <repository-url>
     cd flutter_todo_app
     ```
 
 2.  **Install dependencies:**
-    ```sh
+    ```bash
     flutter pub get
     ```
 
-3.  **Run the application:**
-    ```sh
+3.  **Generate Hive Adapters:**
+    > **Note:** This project uses Hive for local storage. You must generate the TypeAdapters before running the app.
+    ```bash
+    flutter pub run build_runner build --delete-conflicting-outputs
+    ```
+
+4.  **Run the application:**
+    ```bash
     flutter run
     ```
 
-The application will start with a mock login screen. Use the following credentials:
+### Demo Credentials
+
+The application starts with a mock login screen. Use the following credentials to access the app:
+
 -   **Username:** `admin`
 -   **Password:** `password`
+
+## How the App Functions
+
+### The User Flow
+
+1.  **Authentication:** The app boots to `LoginScreen`. Entering the demo credentials triggers the `AuthBloc`, transitioning the user to the `TodosScreen`.
+2.  **Initial Load:** Upon loading `TodosScreen`, the `TodoBloc` fires a `LoadTodos` event. The app checks network connectivity; if online, it fetches from the JSONPlaceholder API and caches locally. If offline, it loads directly from the local Hive cache.
+3.  **Adding a Task:** Tapping the FAB opens a bottom sheet. Entering a task creates a temporary, mathematically safe 32-bit ID (using bitwise masking `DateTime.now().millisecondsSinceEpoch & 0x7FFFFFFF` to comply with Hive's integer limits).
+4.  **Interacting:** Checking off a task or deleting a task instantly updates the UI (Optimistic Update) while silently sending the `PATCH` or `DELETE` request to the server in the background.
+5.  **Searching:** Typing in the search bar triggers a debounced search event, filtering the local state in real-time without making unnecessary API calls.
 
 ## Architecture and Design Decisions
 
 ### Feature-First Architecture
-This project is structured around features (`auth`, `todos`) to promote modularity and separation of concerns. Each feature contains its own BLoCs, UI, and data logic, making the codebase easier to navigate, maintain, and scale.
 
-### Authentication Routing
-The root of the application (`app.dart`) uses a `BlocBuilder` on the `AuthBloc` to manage routing. If the user is `unauthenticated`, it shows the `LoginScreen`. Once `authenticated`, it transitions to the `TodosScreen`. This ensures that protected routes are only accessible after a successful login.
+The project is structured around features rather than by layer. This approach improves scalability, modularity, and makes finding domain-specific logic much easier.
 
-### BLoC Pattern and Optimistic Updates
-The BLoC (Business Logic Component) pattern is used for state management, decoupling the UI from the business logic.
+```
+lib/
+├── src/
+│   ├── app.dart              # Root widget, handles auth routing via BlocBuilder
+│   ├── core/
+│   │   ├── api/              # ApiClient with Cloudflare/Bot-protection bypass headers
+│   │   ├── local_storage/    # Hive local caching service
+│   │   └── network/          # Network connectivity checker
+│   │
+│   └── features/
+│       ├── auth/             # Authentication feature (UI & BLoC)
+│       └── todos/            # Todos feature
+│           ├── bloc/         # TodoBloc, Events, States
+│           ├── data/         # Models, Hive Adapters, Repository
+│           ├── view/         # Main Screens
+│           └── widgets/      # Reusable UI components (TodoItem)
+```
 
--   **Events:** UI components dispatch events (e.g., `AddTask`, `ToggleTaskCompletion`) to the `TodosBloc`.
--   **States:** The `TodosBloc` processes these events, interacts with the `TodoRepository`, and emits new states (`TaskLoading`, `TaskLoaded`, `TaskError`).
--   **UI:** The `BlocBuilder` widgets in the UI layer listen for state changes and rebuild accordingly.
+### BLoC Pattern & Optimistic Updates
 
-**Optimistic Updates:** For a seamless user experience, UI changes are applied immediately without waiting for the server's confirmation.
-1.  When an event like `ToggleTaskCompletion` is dispatched, the `TodosBloc` immediately emits a new `TaskLoaded` state with the updated (toggled) todo list.
-2.  It then attempts to sync this change with the remote API via the `TodoRepository`.
-3.  If the API call fails, the BLoC catches the error and reverts the UI to its previous state by re-emitting the original todo list and showing an error message (e.g., using a `SnackBar`).
+The application relies strictly on `flutter_bloc` to decouple the presentation layer from business logic.
 
-This approach makes the application feel fast and responsive, even on slow networks.
+**The Optimistic Update Cycle:**
+To make the application feel lightning-fast, we do not show loading spinners for minor actions (like checking a box).
 
-## Offline Support Strategy
+1.  **Action:** User checks a task as complete.
+2.  **Immediate UI Update:** The `TodoBloc` immediately copies the current state, modifies the specific task, and emits a new `TodoLoaded` state. The UI updates instantly.
+3.  **Network Call:** The BLoC instructs the `TodoRepository` to send the `PATCH` request to the API.
+4.  **Error Handling (Rollback):** If the API call fails (e.g., server down), the BLoC catches the error, reverts the state to the original `TodoLoaded` list, and emits a `TodoError` to trigger a `SnackBar` notifying the user of the failure.
 
-The application is designed to work offline using a local caching and background synchronization strategy.
+## Offline Support & Sync Strategy
 
-### Caching Mechanism
--   **LocalCacheService:** This service (implemented with `shared_preferences` in this project) is responsible for all local database operations (CRUD). It stores the list of todos in a serialized format (JSON string).
--   **TodoRepository:** This repository acts as a single source of truth. When fetching data, it first checks for a network connection using the `connectivity_plus` package.
-    -   **Online:** It fetches fresh data from the remote API, updates the local cache with the new data, and then returns the list.
-    -   **Offline:** It retrieves and returns the last known data directly from the local cache.
+The app utilizes a robust offline-first strategy powered by Hive (a fast, lightweight NoSQL database for Flutter).
 
-### Background Syncing Strategy
-When the user is offline, any changes (adds, updates, deletes) are queued locally.
-1.  The `TodoRepository` catches API errors that occur due to a lack of network connectivity.
-2.  Instead of propagating the error, it stores the failed operation (e.g., the new todo to be created) in a separate "pending changes" queue in the `LocalCacheService`.
-3.  A background process or a listener on the network status (using `connectivity_plus`) detects when the device comes back online.
-4.  Once online, it triggers a `SyncTasks` event. The `TodosBloc` then processes this queue, sending all the pending changes to the remote API to synchronize the state.
+### 1. Local Caching Mechanism
 
-## Challenges of State Synchronization
+The `TodoRepository` acts as the single source of truth.
 
-Synchronizing local and remote states presents several challenges:
+-   **Reading:** When fetching tasks, it checks `NetworkInfo`. If online, it pulls from the API and immediately overwrites the Hive cache. If offline, it reads directly from Hive.
+-   **Writing:** All creations, updates, and deletions are saved to Hive first, ensuring the local database is always up to date regardless of network status.
 
-1.  **Data Conflicts:** What happens if a todo is modified on the server while the user is offline and making local changes to the same todo?
-2.  **Order of Operations:** Ensuring that queued operations are executed in the correct order is crucial to avoid data corruption.
-3.  **Error Handling:** If a synced operation fails (e.g., due to a server-side validation error), how do we handle it without losing the user's change?
+### 2. Background Syncing (Action Queue)
 
-This architecture begins to solve these issues:
--   By having the `TodoRepository` as a single source of truth, we centralize the logic for fetching and updating data, which is the first step in managing conflicts.
--   The optimistic update mechanism provides immediate feedback, but the repository's logic ensures that this is reconciled with the server state. In a more advanced implementation, the repository could implement a conflict resolution strategy (e.g., "last write wins" or prompting the user).
--   The background sync queue ensures that no data is lost during connectivity outages. For more complex scenarios, each queued item could be given a timestamp or a version number to help resolve conflicts during synchronization.
+When the user modifies a task while offline, the app cannot reach the JSONPlaceholder API.
+
+-   The `TodoRepository` catches the `SocketException` or `UnauthorisedException`.
+-   Instead of discarding the action, the `LocalCacheService` saves the action to a "Queued Actions List" (e.g., `{'type': 'create', 'data': {...}}`).
+-   The repository listens to network status changes. When the connection is restored, it triggers the `syncPendingChanges()` method.
+-   The app iterates through the queue, re-attempts the API calls in the background, and clears the queue upon success, ensuring no data is ever lost.
+
+## Challenges & Solutions
+
+-   **Cloudflare API Blocking:**
+    -   **Challenge:** Initial `http` requests to the JSONPlaceholder API were intercepted and blocked by Cloudflare returning HTML (403 Forbidden) pages, assuming the Flutter app was a bot.
+    -   **Solution:** Injected standard browser `User-Agent` and `Accept: application/json` headers into the `ApiClient` to securely bypass the bot protection.
+
+-   **Hive 32-Bit Integer Limits vs. Milliseconds:**
+    -   **Challenge:** Generating temporary IDs for offline task creation using `DateTime.now().millisecondsSinceEpoch` resulted in a 64-bit integer. Hive strictly requires 32-bit integers for keys, causing a fatal crash (`HiveError: Integer keys need to be in the range 0 - 0xFFFFFFFF`).
+    -   **Solution:** Implemented a bitwise AND operator mask (`& 0x7FFFFFFF`) when generating the ID. This instantly chops the 64-bit timestamp down into a safe, positive 32-bit integer, guaranteeing Hive compatibility without the risk of random number collisions.
+
+-   **Search State Preservation:**
+    -   **Challenge:** When a user had an active search query (e.g., "Buy groceries") and toggled a task as complete, the BLoC's optimistic update was accidentally resetting the active `filteredTodos` list back to the `allTodos` list, breaking the UI search state.
+    -   **Solution:** Updated the `TodoBloc` to store `_currentSearchQuery` in memory. Created a helper function `_applySearchFilter()` that is run on every emitted state, ensuring that CRUD actions never interrupt an active search session.
+## LICENSE
+SOFTWARE OWNED BY ROSHAN SINGH
