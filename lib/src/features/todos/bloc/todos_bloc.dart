@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../data/models/todo.dart';
 import '../data/todos_repository.dart';
@@ -54,13 +55,16 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
 
       try {
         await _todoRepository.createTodo(event.todo);
-      } catch (e) {
+      } catch (e, stackTrace) {
         final revertedState = List<Todo>.from(currentState.allTodos)
           ..remove(event.todo);
         emit(TodoLoaded(
             allTodos: revertedState,
             filteredTodos: _applySearchFilter(revertedState)));
-        emit(TodoError("Failed to add Todo. Reverted changes."));
+        debugPrint('--- ADD TODO FAILED ---');
+        debugPrint(e.toString());
+        debugPrint(stackTrace.toString());
+        emit(TodoError("Failed to add Todo: $e"));
       }
     }
   }

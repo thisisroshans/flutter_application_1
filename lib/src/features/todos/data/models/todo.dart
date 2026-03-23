@@ -22,14 +22,17 @@ class Todo extends Equatable {
 
   factory Todo.fromJson(Map<String, dynamic> json) {
     return Todo(
-      id: json['id'],
-      title: json['title'],
-      completed: json['completed'],
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id'].toString()) ?? 0,
+      title: json['title']?.toString() ?? 'Untitled',
+      completed: json['completed'] == true,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
+      'userId': 1,
       'id': id,
       'title': title,
       'completed': completed,
