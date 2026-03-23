@@ -8,10 +8,11 @@ part 'todos_state.dart';
 
 class TodoBloc extends Bloc<TodoEvent, TodoState> {
   final TodoRepository _todoRepository;
+  String _currentSearchQuery = '';
 
   TodoBloc({required TodoRepository todoRepository})
-    : _todoRepository = todoRepository,
-      super(TodoInitial()) {
+      : _todoRepository = todoRepository,
+        super(TodoInitial()) {
     on<LoadTodos>(_onLoadTodos);
     on<AddTodo>(_onAddTodo);
     on<ToggleTodoCompletion>(_onToggleTodoCompletion);
@@ -20,38 +21,52 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
     on<SyncTodos>(_onSyncTodos);
   }
 
+  // apply the current search filter
+  List<Todo> _applySearchFilter(List<Todo> todos) {
+    if (_currentSearchQuery.isEmpty) return todos;
+    return todos
+        .where((todo) => todo.title
+            .toLowerCase()
+            .contains(_currentSearchQuery.toLowerCase()))
+        .toList();
+  }
+
   Future<void> _onLoadTodos(LoadTodos event, Emitter<TodoState> emit) async {
     emit(TodoLoading());
     try {
       final todos = await _todoRepository.getTodos();
-      emit(TodoLoaded(allTodos: todos, filteredTodos: todos));
+      emit(TodoLoaded(
+          allTodos: todos, filteredTodos: _applySearchFilter(todos)));
     } catch (e) {
-      emit(TodoError(e.toString()));
+      emit(TodoError("Failed to load todos: ${e.toString()}"));
     }
   }
 
   Future<void> _onAddTodo(AddTodo event, Emitter<TodoState> emit) async {
     if (state is TodoLoaded) {
       final currentState = state as TodoLoaded;
-      final optimisticState = currentState.allTodos..add(event.todo);
-      emit(
-        TodoLoaded(allTodos: optimisticState, filteredTodos: optimisticState),
-      );
+      final optimisticState = List<Todo>.from(currentState.allTodos)
+        ..insert(0, event.todo);
+
+      emit(TodoLoaded(
+          allTodos: optimisticState,
+          filteredTodos: _applySearchFilter(optimisticState)));
+
       try {
         await _todoRepository.createTodo(event.todo);
       } catch (e) {
-        final currentState = state as TodoLoaded;
-        final revertedState = currentState.allTodos..remove(event.todo);
-        emit(TodoLoaded(allTodos: revertedState, filteredTodos: revertedState));
-        emit(TodoError("Failed to add Todo: ${e.toString()}"));
+        final revertedState = List<Todo>.from(currentState.allTodos)
+          ..remove(event.todo);
+        emit(TodoLoaded(
+            allTodos: revertedState,
+            filteredTodos: _applySearchFilter(revertedState)));
+        emit(TodoError("Failed to add Todo. Reverted changes."));
       }
     }
   }
 
   Future<void> _onToggleTodoCompletion(
-    ToggleTodoCompletion event,
-    Emitter<TodoState> emit,
-  ) async {
+      ToggleTodoCompletion event, Emitter<TodoState> emit) async {
     if (state is TodoLoaded) {
       final currentState = state as TodoLoaded;
       final originalTodos = List<Todo>.from(currentState.allTodos);
@@ -59,25 +74,23 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
       if (todoIndex == -1) return;
 
       final todo = originalTodos[todoIndex];
-      final updatedTodo = Todo(
-        id: todo.id,
-        userId: todo.userId,
-        title: todo.title,
-        completed: event.isCompleted,
-      );
+      final updatedTodo =
+          Todo(id: todo.id, title: todo.title, completed: event.isCompleted);
 
       final optimisticTodos = List<Todo>.from(originalTodos);
       optimisticTodos[todoIndex] = updatedTodo;
 
-      emit(
-        TodoLoaded(allTodos: optimisticTodos, filteredTodos: optimisticTodos),
-      );
+      emit(TodoLoaded(
+          allTodos: optimisticTodos,
+          filteredTodos: _applySearchFilter(optimisticTodos)));
 
       try {
         await _todoRepository.updateTodo(event.id, event.isCompleted);
       } catch (e) {
-        emit(TodoLoaded(allTodos: originalTodos, filteredTodos: originalTodos));
-        emit(TodoError("Failed to update Todo: ${e.toString()}"));
+        emit(TodoLoaded(
+            allTodos: originalTodos,
+            filteredTodos: _applySearchFilter(originalTodos)));
+        emit(TodoError("Failed to update Todo. Reverted changes."));
       }
     }
   }
@@ -90,33 +103,29 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
 
       final optimisticTodos = List<Todo>.from(originalTodos)
         ..remove(todoToDelete);
-      emit(
-        TodoLoaded(allTodos: optimisticTodos, filteredTodos: optimisticTodos),
-      );
+      emit(TodoLoaded(
+          allTodos: optimisticTodos,
+          filteredTodos: _applySearchFilter(optimisticTodos)));
+
       try {
         await _todoRepository.deleteTodo(event.id);
       } catch (e) {
-        emit(TodoLoaded(allTodos: originalTodos, filteredTodos: originalTodos));
-        emit(TodoError("Failed to delete Todo: ${e.toString()}"));
+        emit(TodoLoaded(
+            allTodos: originalTodos,
+            filteredTodos: _applySearchFilter(originalTodos)));
+        emit(TodoError("Failed to delete Todo. Reverted changes."));
       }
     }
   }
 
   void _onSearchTodos(SearchTodos event, Emitter<TodoState> emit) {
     if (state is TodoLoaded) {
+      _currentSearchQuery = event.query;
       final currentState = state as TodoLoaded;
-      final filteredTodos = currentState.allTodos
-          .where(
-            (todo) =>
-                todo.title.toLowerCase().contains(event.query.toLowerCase()),
-          )
-          .toList();
-      emit(
-        TodoLoaded(
-          allTodos: currentState.allTodos,
-          filteredTodos: filteredTodos,
-        ),
-      );
+      emit(TodoLoaded(
+        allTodos: currentState.allTodos,
+        filteredTodos: _applySearchFilter(currentState.allTodos),
+      ));
     }
   }
 

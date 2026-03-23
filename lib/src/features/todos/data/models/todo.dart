@@ -8,9 +8,6 @@ class Todo extends Equatable {
   @HiveField(0)
   final int id;
 
-  @HiveField(1)
-  final int userId;
-
   @HiveField(2)
   final String title;
 
@@ -19,7 +16,6 @@ class Todo extends Equatable {
 
   const Todo({
     required this.id,
-    required this.userId,
     required this.title,
     required this.completed,
   });
@@ -27,7 +23,6 @@ class Todo extends Equatable {
   factory Todo.fromJson(Map<String, dynamic> json) {
     return Todo(
       id: json['id'],
-      userId: json['userId'],
       title: json['title'],
       completed: json['completed'],
     );
@@ -36,12 +31,11 @@ class Todo extends Equatable {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'userId': userId,
       'title': title,
       'completed': completed,
     };
   }
 
   @override
-  List<Object?> get props => [id, userId, title, completed];
+  List<Object?> get props => [id, title, completed];
 }

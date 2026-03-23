@@ -65,7 +65,6 @@ class _TodosScreenState extends State<TodosScreen> {
                   AddTodo(
                     Todo(
                       id: DateTime.now().millisecondsSinceEpoch,
-                      userId: 1,
                       title: text,
                       completed: false,
                     ),
@@ -84,6 +83,8 @@ class _TodosScreenState extends State<TodosScreen> {
 
   Future<void> _onRefresh() async {
     _todoBloc.add(LoadTodos());
+    await _todoBloc.stream
+        .firstWhere((state) => state is TodoLoaded || state is TodoError);
   }
 
   @override
@@ -101,10 +102,14 @@ class _TodosScreenState extends State<TodosScreen> {
           if (state is TodoError) {
             ScaffoldMessenger.of(context)
               ..hideCurrentSnackBar()
-              ..showSnackBar(SnackBar(content: Text(state.message)));
+              ..showSnackBar(SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.red,
+              ));
           }
         },
         child: BlocBuilder<TodoBloc, TodoState>(
+          buildWhen: (previous, current) => current is! TodoError,
           builder: (context, state) {
             if (state is TodoLoaded) {
               return RefreshIndicator(
@@ -118,8 +123,10 @@ class _TodosScreenState extends State<TodosScreen> {
                 ),
               );
             }
-
-            return const Center(child: CircularProgressIndicator());
+            if (state is TodoLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            return const Center(child: Text("No Todos Found"));
           },
         ),
       ),
@@ -128,13 +135,6 @@ class _TodosScreenState extends State<TodosScreen> {
         child: const Icon(Icons.add),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    _debounce?.cancel();
-    super.dispose();
   }
 }
 

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import '../../../core/api/api_client.dart';
 import '../../../core/local_storage/local_cache_service.dart';
 import '../../../core/network/network_info.dart';
@@ -14,9 +16,9 @@ class TodoRepository {
     required ApiClient apiClient,
     required LocalCacheService localCacheService,
     required NetworkInfo networkInfo,
-  }) : _apiClient = apiClient,
-       _localCacheService = localCacheService,
-       _networkInfo = networkInfo {
+  })  : _apiClient = apiClient,
+        _localCacheService = localCacheService,
+        _networkInfo = networkInfo {
     _networkInfo.isConnected.then((connected) {
       if (connected) {
         syncPendingChanges();
@@ -53,7 +55,6 @@ class TodoRepository {
       final todo = todos[index];
       final updatedTodo = Todo(
         id: todo.id,
-        userId: todo.userId,
         title: todo.title,
         completed: completed,
       );
@@ -84,25 +85,37 @@ class TodoRepository {
 
   Future<void> syncPendingChanges() async {
     final actions = await _localCacheService.getQueuedActions();
-    if (actions.isEmpty) {
-      return;
-    }
+    if (actions.isEmpty) return;
 
     for (final action in actions) {
-      final type = action['type'];
-      final data = action['data'];
       try {
-        if (type == 'create') {
-          await _apiClient.createTodo(Todo.fromJson(data));
-        } else if (type == 'update') {
-          await _apiClient.updateTodo(data['id'], data['completed']);
-        } else if (type == 'delete') {
-          await _apiClient.deleteTodo(data['id']);
-        }
-      } catch (e) {
-        // Handle sync error, maybe log it or retry later
+        await _handleAction(action);
+      } catch (e, stack) {
+        debugPrint('Sync failed for action: ${action['type']}');
+        debugPrint('Error: $e');
+        debugPrintStack(stackTrace: stack);
+        return;
       }
     }
     await _localCacheService.clearQueuedActions();
+  }
+
+  Future<void> _handleAction(Map<String, dynamic> action) async {
+    final type = action['type'];
+    final data = action['data'];
+
+    switch (type) {
+      case 'create':
+        await _apiClient.createTodo(Todo.fromJson(data));
+        break;
+      case 'update':
+        await _apiClient.updateTodo(data['id'], data['completed']);
+        break;
+      case 'delete':
+        await _apiClient.deleteTodo(data['id']);
+        break;
+      default:
+        debugPrint('Unknown action type: $type');
+    }
   }
 }
